@@ -8,7 +8,7 @@ USER root
 ARG DEBIAN_FRONTEND=noninteractive
 
 # install dev tools
-RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y default-jdk lsof net-tools curl tar sudo openssh-server rsync wget
+RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y default-jdk vim lsof net-tools curl tar sudo openssh-server rsync wget telnet
 
 # passwordless ssh
 RUN rm -f /etc/ssh/ssh_host_dsa_key /etc/ssh/ssh_host_rsa_key /root/.ssh/id_rsa
@@ -35,7 +35,7 @@ RUN curl -L -O -k http://ftp.unicamp.br/pub/apache/hadoop/common/hadoop-2.8.0/ha
 RUN tar -xvzf hadoop-2.8.0.tar.gz -C /usr/local/
 RUN rm -rf hadoop-2.8.0.tar.gz
 
-RUN cd /usr/local && ln -s ./hadoop-2.8.0 hadoop
+RUN cd /usr/local && chown -R root:root /usr/local/hadoop-2.8.0 && ln -s ./hadoop-2.8.0 hadoop
 
 ENV HADOOP_PREFIX /usr/local/hadoop
 ENV HADOOP_COMMON_HOME /usr/local/hadoop
@@ -54,7 +54,7 @@ RUN cp $HADOOP_PREFIX/etc/hadoop/*.xml $HADOOP_PREFIX/input
 
 # pseudo distributed
 ADD core-site.xml.template $HADOOP_PREFIX/etc/hadoop/core-site.xml.template
-RUN sed s/HOSTNAME/localhost/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
+RUN sed s/HOSTNAME/0.0.0.0/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
 ADD hdfs-site.xml $HADOOP_PREFIX/etc/hadoop/hdfs-site.xml
 
 ADD mapred-site.xml $HADOOP_PREFIX/etc/hadoop/mapred-site.xml
@@ -80,11 +80,6 @@ RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
 RUN echo "export HADOOP_OPTS=-Djava.net.preferIPv4Stack=true" >> /usr/local/hadoop/etc/hadoop/hadoop-env.sh
 RUN cat /usr/local/hadoop/etc/hadoop/hadoop-env.sh
 
-# workingaround docker.io build error
-RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
-RUN chmod +x /usr/local/hadoop/etc/hadoop/*-env.sh
-RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
-
 # fix the 254 error code
 RUN sed  -i "/^[^#]*UsePAM/ s/.*/#&/"  /etc/ssh/sshd_config
 RUN echo "UsePAM no" >> /etc/ssh/sshd_config
@@ -92,6 +87,8 @@ RUN echo "Port 2122" >> /etc/ssh/sshd_config
 
 RUN /etc/init.d/ssh start && $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -mkdir -p /user/root
 RUN /etc/init.d/ssh start && $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -put $HADOOP_PREFIX/etc/hadoop/ input
+RUN /etc/init.d/ssh start && $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -ls /user/root
+RUN /etc/init.d/ssh start && $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -ls input
 
 CMD ["/etc/bootstrap.sh", "-d"]
 
